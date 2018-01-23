@@ -10,9 +10,15 @@ import com.tfarm.member.model.ZipDto;
 public interface MemberDao {
 	
 	int idCheck(String id);
+	int pwCheck(Map<String,String> map);
+	String bringPw(String number);
+	int modifyMember(MemberDetailDto memberDetailDto);
 	List<ZipDto> zipSearch(String dong);
 	int registerMember(MemberDetailDto memberDetailDto);
+	int socialRegister(Map<String, String> map);
 	void deleteMember(String id);
-	MemberDto login(Map<String, String> map);	
+	MemberDetailDto login(Map<String, String> map);
+	MemberDetailDto socialLogin(String id);
 	List<MemberDetailDto> listMember(Map<String, String> map);
+	
 }

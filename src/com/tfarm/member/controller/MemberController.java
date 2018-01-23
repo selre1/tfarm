@@ -2,6 +2,7 @@ package com.tfarm.member.controller;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
@@ -10,6 +11,7 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -19,6 +21,7 @@ import org.springframework.web.servlet.ModelAndView;
 import com.tfarm.member.model.MemberDetailDto;
 import com.tfarm.member.model.MemberDto;
 import com.tfarm.member.model.ZipDto;
+import com.tfarm.member.model.service.MailService;
 import com.tfarm.member.model.service.MemberService;
 import com.tfarm.util.StringEncoder;
 
@@ -31,6 +34,9 @@ public class MemberController {
 	
 	@Autowired
 	private MemberService memberService;
+	
+	@Autowired
+	private MailService mailService;
 	
 	@RequestMapping(value="/join.tfarm", method=RequestMethod.GET)
 	public String join() {
@@ -49,6 +55,20 @@ public class MemberController {
 		mav.setViewName(viewName);
 		return mav;
 	}
+	@RequestMapping(value="/email.tfarm", method=RequestMethod.POST)
+	public @ResponseBody String send(HttpSession session,HttpServletRequest request, @RequestParam(value="email") String email){
+		int randomCode = new Random().nextInt(1000) + 1000;
+		String joinCode = String.valueOf(randomCode);
+		String subject = "TFARM 회원가입 승인 번호 입니다.";
+		StringBuilder sb = new StringBuilder();
+		sb.append("회원가입 승인 번호는").append(joinCode).append("입니다.");		
+		boolean result = mailService.send(subject, sb.toString(), "selre4824@gamil.com", email);
+		JSONObject json = new JSONObject();
+		json.put("result", result);
+		json.put("joincode", joinCode);
+		return json.toJSONString();
+	}
+	
 	
 	@RequestMapping(value="/jusopopup.tfarm")
 	public String jusoPopup() {
@@ -60,6 +80,43 @@ public class MemberController {
 		return "redirect:/index.jsp";
 	}
 	
+	@RequestMapping(value="/pwcheck.tfarm")
+	public ModelAndView confirmpass() {
+		ModelAndView mav = new ModelAndView();
+		mav.setViewName("/WEB-INF/mypage/confirmpass");
+		return mav;
+//		return "redirect:/WEB-INF/mypage/confirmpass.jsp";
+	}
+	
+	@RequestMapping(value="/mypage.tfarm")
+	public ModelAndView mypage(@RequestParam(value="mem_id", required=true) String id, 
+			@RequestParam(value="mem_pw", required=true) String pass) {
+		ModelAndView mav = new ModelAndView();
+		int cnt = memberService.pwCheck(id, pass);
+		String viewName = "/WEB-INF/mypage/confirmpass";
+		if(cnt !=0) {
+			viewName = "/WEB-INF/mypage/mypage";
+		}
+		mav.setViewName(viewName);
+		return mav;
+	}
+	@RequestMapping(value="/modifyPass.tfarm")
+	public @ResponseBody String modifyPass(@RequestParam(value="mem_no", required=true) String number){
+		String password = memberService.bringPw(number);
+		JSONObject json = new JSONObject();
+		json.put("pass", password);
+		return json.toJSONString();
+	}
+	@RequestMapping(value="/infomodify.tfarm")
+	public ModelAndView infomodify(MemberDetailDto memberDetailDto){
+		ModelAndView mav = new ModelAndView();
+		int cnt = memberService.modifyMember(memberDetailDto);
+		if(cnt != 0){
+			System.out.println("성공");
+		}
+		return mav;
+	}
+	
 	@RequestMapping(value="/login.tfarm", method=RequestMethod.GET)
 	public String login() {
 		return "redirect:/login/login.jsp";
@@ -69,14 +126,41 @@ public class MemberController {
 	public String login(@RequestParam(value="mem_id", required=true) String id,
 			@RequestParam(value="mem_pw", required=true) String pass, HttpServletRequest request, HttpSession session) {
 		String url = request.getHeader("referer");
-		MemberDto memberDto = memberService.login(id, pass);
-		session.setAttribute("userInfo", memberDto);
+		MemberDetailDto memberdetailDto = memberService.login(id, pass);
+		session.setAttribute("userInfo", memberdetailDto);
 		if(url.contains("login.jsp")) {
 			url = "/index.jsp";
 		}
 		System.out.println("로그인 됬냐"+url);
+		
 		return "redirect:"+url;
 	}
+	@RequestMapping(value="/social.tfarm", method=RequestMethod.POST)
+	public String kakaologin(@RequestParam(value="semail", required=true) String semail,
+			@RequestParam(value="sname",required=true) String sname, 
+			@RequestParam(value="sid",required=true) String sid, HttpSession session){
+		
+		String id = sid;
+		String name = sname;
+		String email1 = semail.split("@")[0];		
+		String email2 = semail.split("@")[1];
+		MemberDetailDto memberdetailDto = memberService.socialLogin(id);
+		if(memberdetailDto != null){
+			session.setAttribute("userInfo", memberdetailDto);
+		}else{
+			int regiok = memberService.socialRegister(id, name, email1, email2);
+			if(regiok != 0){				
+				session.setAttribute("userInfo", memberdetailDto);			
+			}else{
+				System.out.println("카카오 등록실패");
+			}
+		}
+		return "redirect:/index.jsp";
+		
+	}
+	
+	
+	
 	
 	@RequestMapping("/logout.tfarm")
 	public String logout(HttpSession session) {
@@ -95,7 +179,6 @@ public class MemberController {
 	@RequestMapping("/idcheck.tfarm")
 	public @ResponseBody String idCheck(@RequestParam("sid") String sid) {
 		int cnt = memberService.idCheck(sid);
-		System.out.println("아이디 갯수 : " + cnt);
 		JSONObject json = new JSONObject();
 		json.put("idcount", cnt);
 		json.put("sid", sid);

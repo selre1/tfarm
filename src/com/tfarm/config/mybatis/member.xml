@@ -17,9 +17,75 @@
         select * from dual
     </insert>
     
-    <select id="login" parameterType="java.util.Map" resultType="com.tfarm.member.model.MemberDto">
-        select mem_no, mem_id, mem_name, mem_birth, mem_state
+    <insert id="socialRegister" parameterType="java.util.Map">
+        insert all
+            into member(mem_no,mem_id,mem_name,mem_state,mem_pw)
+            values(seq_mem_no.nextval,#{userid},#{username},0,#{userid})
+            into member_detail(mem_no,mem_email1,mem_email2,mem_join_date)
+            values(seq_mem_no.currval,#{useremail1},#{useremail2},sysdate)
+        select * from dual
+    </insert>
+    
+    <select id="login" parameterType="java.util.Map" resultType="com.tfarm.member.model.MemberDetailDto">
+        select m.mem_no, mem_id, mem_name, mem_birth, mem_join_date, mem_state, mem_email1, mem_email2, mem_tel1, mem_tel2, mem_tel3, mem_zipcode1, mem_address1, mem_address2
+        from member m, member_detail d
+        where m.mem_no= d.mem_no and mem_id = #{userid} and mem_pw = #{userpwd}
+    </select>
+    
+    <select id="socialLogin" parameterType="String" resultType="com.tfarm.member.model.MemberDetailDto">
+        select m.mem_no, mem_id, mem_name, mem_birth, mem_join_date, mem_state, mem_email1, mem_email2, mem_tel1, mem_tel2, mem_tel3, mem_zipcode1, mem_address1, mem_address2
+        from member m, member_detail d
+        where m.mem_no= d.mem_no and mem_id = #{id}
+    </select>
+    
+    <select id="pwCheck" parameterType="java.util.Map" resultType="int">
+        select count(mem_id)
         from member
         where mem_id = #{userid} and mem_pw = #{userpwd}
     </select>
+    
+    <select id="bringPw" parameterType="String" resultType="String">
+        select mem_pw
+        from member
+        where mem_no = #{number}
+    </select>
+    
+  
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    <update id="modifyMember" parameterType="com.tfarm.member.model.MemberDetailDto">
+        update member m , member_detail d
+        set mem_id = #{mem_id}, mem_pw = #{mem_pw}, 
+            mem_email1 = #{mem_email1}, mem_email2 = #{mem_email2}, 
+            mem_tel1=#{mem_tel1}, mem_tel2=#{mem_tel2}, mem_tel3=#{mem_tel3}, 
+            mem_zipcode1=#{mem_zipcode1},mem_zipcode2=#{mem_zipcode2}, 
+            mem_address1=#{mem_address1}, mem_address2=#{mem_address2}
+        where m.mem_no = d.mem_no
+    </update>
+    
 </mapper>
